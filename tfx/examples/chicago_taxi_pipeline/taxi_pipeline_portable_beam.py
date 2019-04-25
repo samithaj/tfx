@@ -71,7 +71,7 @@ logger_overrides = {
 
 # TODO(b/124066911): Centralize tfx related config into one place.
 @PipelineDecorator(
-    pipeline_name='chicago_taxi_flink',
+    pipeline_name='chicago_taxi_portable_beam',
     enable_cache=True,
     metadata_db_root=_metadata_db_root,
     pipeline_root=_pipeline_root,
@@ -82,14 +82,14 @@ logger_overrides = {
         'beam_pipeline_args': [
             # ----- Beam Args -----.
             '--runner=PortableRunner',
-            # Points to the job server started in setup_beam_on_flink.sh
+            # Points to the job server started in setup_beam_on_(flink|spark).sh
             '--job_endpoint=localhost:8099',
             '--environment_type=LOOPBACK',
             # TODO(BEAM-6754): Utilize multicore in LOOPBACK environment.  # pylint: disable=g-bad-todo
             # TODO(BEAM-5167): Use concurrency information from SDK Harness.  # pylint: disable=g-bad-todo
             # Note; We use 100 worker threads to mitigate the issue with
-            # scheduling work between Flink and Beam SdkHarness. Flink can
-            # process unlimited work items concurrently in a TaskManager while
+            # scheduling work between the Beam runner and SDK harness. Flink and
+            # Spark can process unlimited work items concurrently while
             # SdkHarness can only process 1 work item per worker thread. Having
             # 100 threads will let 100 tasks execute concurrently avoiding
             # scheduling issue in most cases. In case the threads are exhausted,
@@ -102,7 +102,7 @@ logger_overrides = {
             # TODO(FLINK-10672): Obviate setting BATCH_FORCED.
             '--execution_mode_for_batch=BATCH_FORCED',
         ],
-        # LINT.ThenChange(tfx/examples/chicago_taxi/setup_beam_on_flink.sh)
+        # LINT.ThenChange(tfx/examples/chicago_taxi/setup_beam_on_portable_beam.sh)
     })
 def _create_pipeline():
   """Implements the chicago taxi pipeline with TFX."""
