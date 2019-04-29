@@ -19,7 +19,6 @@ from __future__ import print_function
 from typing import Any, Dict, Optional, Text
 
 from tfx.components.base import base_component
-from tfx.components.base import base_driver
 from tfx.components.pusher import executor
 from tfx.proto import pusher_pb2
 from tfx.utils import channel
@@ -72,7 +71,6 @@ class Pusher(base_component.BaseComponent):
     super(Pusher, self).__init__(
         component_name=component_name,
         unique_name=name,
-        driver=base_driver.BaseDriver,
         executor=executor.Executor,
         input_dict=input_dict,
         outputs=outputs,

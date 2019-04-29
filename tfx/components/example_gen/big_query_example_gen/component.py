@@ -20,7 +20,6 @@ from __future__ import print_function
 from typing import Any, Dict, Optional, Text
 
 from tfx.components.base import base_component
-from tfx.components.base import base_driver
 from tfx.components.example_gen import utils
 from tfx.components.example_gen.big_query_example_gen import executor
 from tfx.proto import example_gen_pb2
@@ -63,7 +62,6 @@ class BigQueryExampleGen(base_component.BaseComponent):
     super(BigQueryExampleGen, self).__init__(
         component_name=component_name,
         unique_name=name,
-        driver=base_driver.BaseDriver,
         executor=executor.Executor,
         input_dict=input_dict,
         outputs=outputs,
