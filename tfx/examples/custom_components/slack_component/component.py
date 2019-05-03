@@ -11,65 +11,71 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""TFX Pusher component definition."""
+"""Example of a TFX custom component integrating with slack.
+
+This component along with other custom component related code will only serve as
+an example and will not be supported by TFX team.
+"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from typing import Any, Dict, Optional, Text
+from slack_component import executor
+from typing import Optional, Text
+
 
 from tfx.components.base import base_component
 from tfx.components.base import base_driver
-from tfx.components.pusher import executor
-from tfx.proto import pusher_pb2
 from tfx.utils import channel
 from tfx.utils import types
-from google.protobuf import json_format
 
 
-class Pusher(base_component.BaseComponent):
-  """Official TFX Pusher component.
+class SlackComponent(base_component.BaseComponent):
+  """Custom TFX Slack Component.
 
-  The `Pusher` component can be used to push an validated SavedModel from output
-  of `Trainer` to tensorflow Serving (tf.serving). If the model is not blessed
-  by `ModelValidator`, no push will happen.
+  This custom component serves as a bridge between TFX pipeline and human model
+  reviewers to enable review-and-push workflow in model development cycle. It
+  utilizes Slack API to send message to user-defined Slack channel with model
+  URI info and wait for go / no-go decision from the same Slack channel:
+    * To approve the model, a user need to reply the thread sent out by the bot
+      started by SlackComponent with 'lgtm' or 'approve'.
+    * To reject the model, a user need to reply the thread sent out by the bot
+      started by SlackComponent with 'decline' or 'reject'.
 
   Args:
     model_export: A Channel of 'ModelExportPath' type, usually produced by
       Trainer component.
     model_blessing: A Channel of 'ModelBlessingPath' type, usually produced by
       ModelValidator component.
-    push_destination: A pusher_py2.PushDestinationLabel instance, providing
-      info for tensorflow serving to load models.
+    slack_token: A token used for setting up connection with Slack server.
+    channel_id: Slack channel id to communicate on.
+    timeout: Seconds to wait for response before default to decline the model.
     name: Optional unique name. Necessary if multiple Pusher components are
       declared in the same pipeline.
-    custom_config: A dict which contains the deployment job parameters to be
-      passed to Google Cloud ML Engine.  For the full set of parameters
-      supported by Google Cloud ML Engine, refer to
-      https://cloud.google.com/ml-engine/reference/rest/v1/projects.models
-    outputs: Optional dict from name to output channel.
   Attributes:
     outputs: A ComponentOutputs including following keys:
-      - model_push: A channel of 'ModelPushPath' with result of push.
+      - blessing: A channel of 'ModelBlessingPath' with result of blessing.
   """
 
   def __init__(self,
                model_export,
                model_blessing,
-               push_destination,
+               slack_token,
+               channel_id,
+               timeout,
                name = None,
-               custom_config = None,
                outputs = None):
-    component_name = 'Pusher'
+    component_name = 'SlackComponent'
     input_dict = {
         'model_export': channel.as_channel(model_export),
         'model_blessing': channel.as_channel(model_blessing),
     }
     exec_properties = {
-        'push_destination': json_format.MessageToJson(push_destination),
-        'custom_config': custom_config,
+        'slack_token': slack_token,
+        'channel_id': channel_id,
+        'timeout': timeout,
     }
-    super(Pusher, self).__init__(
+    super(SlackComponent, self).__init__(
         component_name=component_name,
         unique_name=name,
         driver=base_driver.BaseDriver,
@@ -79,30 +85,30 @@ class Pusher(base_component.BaseComponent):
         exec_properties=exec_properties)
 
   def _create_outputs(self):
-    """Creates outputs for Pusher.
+    """Creates outputs for SlackComponent.
 
     Returns:
       ComponentOutputs object containing the dict of [Text -> Channel]
     """
-    model_push_artifact_collection = [types.TfxType('ModelPushPath',)]
+    slack_blessing_output = [types.TfxType('ModelBlessingPath')]
     return base_component.ComponentOutputs({
-        'model_push':
+        'slack_blessing':
             channel.Channel(
-                type_name='ModelPushPath',
-                static_artifact_collection=model_push_artifact_collection),
+                type_name='ModelBlessingPath',
+                static_artifact_collection=slack_blessing_output),
     })
 
-  def _type_check(self, input_dict,
-                  exec_properties):
+  def _type_check(self, input_dict, exec_properties):
     """Does type checking for the inputs and exec_properties.
 
     Args:
       input_dict: A Dict[Text, Channel] as the inputs of the Component.
       exec_properties: A Dict[Text, Any] as the execution properties of the
-        component. Unused right now.
+        component. Unchecked right now.
 
     Raises:
       TypeError: if the type_name of given Channel is different from expected.
     """
+    del exec_properties
     input_dict['model_export'].type_check('ModelExportPath')
     input_dict['model_blessing'].type_check('ModelBlessingPath')

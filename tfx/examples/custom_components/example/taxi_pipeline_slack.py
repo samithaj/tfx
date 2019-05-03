@@ -11,7 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Chicago taxi example using TFX."""
+"""Example pipeline to demonstrate custom TFX component.
+
+This example consists of standard TFX components as well as a custom TFX
+component requesting for manual review through Slack.
+
+This example along with the custom `SlackComponent` will only serve as an
+example and will not be supported by TFX team.
+"""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -20,6 +27,9 @@ from __future__ import print_function
 import datetime
 import logging
 import os
+
+from slack_component.component import SlackComponent
+
 from tfx.components.evaluator.component import Evaluator
 from tfx.components.example_gen.csv_example_gen.component import CsvExampleGen
 from tfx.components.example_validator.component import ExampleValidator
@@ -46,7 +56,11 @@ _data_root = os.path.join(_taxi_root, 'data/simple')
 _taxi_module_file = os.path.join(_taxi_root, 'taxi_utils.py')
 # Path which can be listened to by the model server.  Pusher will output the
 # trained model here.
-_serving_model_dir = os.path.join(_taxi_root, 'serving_model/taxi_simple')
+_serving_model_dir = os.path.join(_taxi_root, 'serving_model/taxi_slack')
+# Slack channel to push the model notifications to.
+_channel_id = 'my-channel-id'
+# Slack token to set up connection.
+_slack_token = os.environ['SLACK_BOT_TOKEN']
 
 # Directory and data locations.  This example assumes all of the chicago taxi
 # example code and metadata library is relative to $HOME, but you can store
@@ -63,47 +77,16 @@ _airflow_config = {
 }
 
 # Logging overrides
-logger_overrides = {
-    'log_root': _log_root,
-    'log_level': logging.INFO
-}
+logger_overrides = {'log_root': _log_root, 'log_level': logging.INFO}
 
 
 # TODO(b/124066911): Centralize tfx related config into one place.
 @PipelineDecorator(
-    pipeline_name='chicago_taxi_flink',
+    pipeline_name='chicago_taxi_slack',
     enable_cache=True,
     metadata_db_root=_metadata_db_root,
-    pipeline_root=_pipeline_root,
-    additional_pipeline_args={
-        'logger_args':
-            logger_overrides,
-        # LINT.IfChange
-        'beam_pipeline_args': [
-            # ----- Beam Args -----.
-            '--runner=PortableRunner',
-            # Points to the job server started in setup_beam_on_flink.sh
-            '--job_endpoint=localhost:8099',
-            '--environment_type=LOOPBACK',
-            # TODO(BEAM-6754): Utilize multicore in LOOPBACK environment.  # pylint: disable=g-bad-todo
-            # TODO(BEAM-5167): Use concurrency information from SDK Harness.  # pylint: disable=g-bad-todo
-            # Note; We use 100 worker threads to mitigate the issue with
-            # scheduling work between Flink and Beam SdkHarness. Flink can
-            # process unlimited work items concurrently in a TaskManager while
-            # SdkHarness can only process 1 work item per worker thread. Having
-            # 100 threads will let 100 tasks execute concurrently avoiding
-            # scheduling issue in most cases. In case the threads are exhausted,
-            # beam print the relevant message in the log.
-            '--experiments=worker_threads=100',
-            # TODO(BEAM-7199): Obviate the need for setting pre_optimize=all.  # pylint: disable=g-bad-todo
-            '--experiments=pre_optimize=all',
-            # ----- Flink Args -----.
-            # TODO(b/126725506): Set the task parallelism based on cpu cores.
-            # TODO(FLINK-10672): Obviate setting BATCH_FORCED.
-            '--execution_mode_for_batch=BATCH_FORCED',
-        ],
-        # LINT.ThenChange(tfx/examples/chicago_taxi/setup_beam_on_flink.sh)
-    })
+    additional_pipeline_args={'logger_args': logger_overrides},
+    pipeline_root=_pipeline_root)
 def _create_pipeline():
   """Implements the chicago taxi pipeline with TFX."""
   examples = csv_input(_data_root)
@@ -149,18 +132,34 @@ def _create_pipeline():
   model_validator = ModelValidator(
       examples=example_gen.outputs.examples, model=trainer.outputs.output)
 
+  # This custom component serves as a bridge between pipeline and human model
+  # reviewers to enable review-and-push workflow in model development cycle. It
+  # utilizes Slack API to send message to user-defined Slack channel with model
+  # URI info and wait for go / no-go decision from the same Slack channel:
+  #   * To approve the model, users need to reply the thread sent out by the bot
+  #     started by SlackComponent with 'lgtm' or 'approve'.
+  #   * To reject the model, users need to reply the thread sent out by the bot
+  #     started by SlackComponent with 'decline' or 'reject'.
+  slack_validator = SlackComponent(
+      model_export=trainer.outputs.output,
+      model_blessing=model_validator.outputs.blessing,
+      slack_token=_slack_token,
+      channel_id=_channel_id,
+      timeout=3600,
+  )
+
   # Checks whether the model passed the validation steps and pushes the model
   # to a file destination if check passed.
   pusher = Pusher(
       model_export=trainer.outputs.output,
-      model_blessing=model_validator.outputs.blessing,
+      model_blessing=slack_validator.outputs.slack_blessing,
       push_destination=pusher_pb2.PushDestination(
           filesystem=pusher_pb2.PushDestination.Filesystem(
               base_directory=_serving_model_dir)))
 
   return [
       example_gen, statistics_gen, infer_schema, validate_stats, transform,
-      trainer, model_analyzer, model_validator, pusher
+      trainer, model_analyzer, model_validator, slack_validator, pusher
   ]
 
 
