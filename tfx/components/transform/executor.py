@@ -27,6 +27,7 @@ import tensorflow_data_validation as tfdv
 import tensorflow_transform as tft
 from tensorflow_transform import impl_helper
 import tensorflow_transform.beam as tft_beam
+from tensorflow_transform.beam import common as tft_beam_common
 from tensorflow_transform.saved import saved_transform_io
 from tensorflow_transform.tf_metadata import dataset_metadata
 from tensorflow_transform.tf_metadata import dataset_schema
@@ -667,12 +668,23 @@ class Executor(base_executor.BaseExecutor):
       # If using TFT 1.12, fall back to assuming all features are used.
       analyze_input_columns = feature_spec.keys()
       transform_input_columns = feature_spec.keys()
+    beam.metrics.Metrics.counter(tft_beam_common.METRICS_NAMESPACE,
+                                 'total_columns').inc(len(feature_spec.keys()))
+    beam.metrics.Metrics.counter(tft_beam_common.METRICS_NAMESPACE,
+                                 'analyze_input_columns').inc(
+                                     len(analyze_input_columns))
+    beam.metrics.Metrics.counter(tft_beam_common.METRICS_NAMESPACE,
+                                 'transform_input_columns').inc(
+                                     len(transform_input_columns))
     # Use the same dataset (same columns) for AnalyzeDataset and computing
     # pre-transform stats so that the data will only be read once for these
     # two operations.
     if compute_statistics:
       analyze_input_columns = list(
           set(list(analyze_input_columns) + list(transform_input_columns)))
+    beam.metrics.Metrics.counter(tft_beam_common.METRICS_NAMESPACE,
+                                 'analyze_and_stats_input_columns').inc(
+                                     len(analyze_input_columns))
     analyze_input_dataset_metadata = copy.deepcopy(input_dataset_metadata)
     transform_input_dataset_metadata = copy.deepcopy(input_dataset_metadata)
     if input_dataset_metadata.schema is not _RAW_EXAMPLE_SCHEMA:
