@@ -69,22 +69,14 @@ class _TfxWorker(models.DAG):
             'cached_branch': task_id + '.publishcache',
         },
         dag=self)
-    if parent_dag.docker_operator_cfg:
-      tfx_op = adaptor.docker_operator(
-          task_id=task_id + '.exec',
-          pusher_task=task_id + '.checkcache',
-          parent_dag=self,
-          docker_operator_cfg=parent_dag.docker_operator_cfg,
-      )
-    else:
-      tfx_op = python_operator.PythonOperator(
-          task_id=task_id + '.exec',
-          provide_context=True,
-          python_callable=adaptor.python_exec,
-          op_kwargs={
-              'cache_task_name': task_id + '.checkcache',
-          },
-          dag=self)
+    tfx_op = python_operator.PythonOperator(
+        task_id=task_id + '.exec',
+        provide_context=True,
+        python_callable=adaptor.python_exec,
+        op_kwargs={
+            'cache_task_name': task_id + '.checkcache',
+        },
+        dag=self)
     publishcache_op = dummy_operator.DummyOperator(
         task_id=task_id + '.publishcache', dag=self)
     publishexec_op = python_operator.PythonOperator(
