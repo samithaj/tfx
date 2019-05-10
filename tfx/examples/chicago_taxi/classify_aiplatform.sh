@@ -14,7 +14,7 @@
 # limitations under the License.
 set -u
 
-echo Running cloud inference...
+echo Running Google Cloud AI Platform inference...
 
 if [ -z "$SCHEMA_PATH" ]; then
   echo SCHEMA_PATH was not set. Please set SCHEMA_PATH to schema produced

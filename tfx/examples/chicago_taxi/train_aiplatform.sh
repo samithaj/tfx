@@ -63,7 +63,7 @@ EVAL_STEPS=1000
 
 TF_VERSION=1.12
 
-gcloud ml-engine jobs submit training $JOB_ID \
+gcloud ai-platform jobs submit training $JOB_ID \
                                     --stream-logs \
                                     --job-dir $MODEL_DIR \
                                     --runtime-version $TF_VERSION \

@@ -24,7 +24,7 @@ if [ -z "$WORKING_DIR" ]; then
   exit 1
 fi
 
-gcloud ml-engine models create chicago_taxi --regions us-central1
+gcloud ai-platform models create chicago_taxi --regions us-central1
 gsutil ls $WORKING_DIR/serving_model_dir/export/chicago-taxi/
 
 # Pick out the directory containing the last trained model.
@@ -33,7 +33,7 @@ MODEL_BINARIES=$(gsutil ls $WORKING_DIR/serving_model_dir/export/chicago-taxi/ \
 
 TF_VERSION=1.12
 
-gcloud ml-engine versions create v1 \
+gcloud ai-platform versions create v1 \
   --model chicago_taxi \
   --origin $MODEL_BINARIES \
   --runtime-version $TF_VERSION

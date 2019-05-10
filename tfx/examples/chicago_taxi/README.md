@@ -332,9 +332,9 @@ scripts.
 ## Cloud prerequisites
 
 This section requires the [local prerequisites](#local_prerequisites) and adds a
-few more for the [Gooogle Cloud Platform](https://cloud.google.com/).
+few more for the [Google Cloud Platform](https://cloud.google.com/).
 
-Follow the Google Cloud Machine Learning Engine
+Follow the Google Cloud AI Platform
 [setup guide](https://cloud.google.com/ml-engine/docs/how-tos/getting-set-up)
 and the Google Cloud Dataflow
 [setup guide](https://cloud.google.com/dataflow/docs/quickstarts/quickstart-python)
@@ -454,7 +454,7 @@ The outputs are the same as the local job, but stored in Google Cloud Storage:
 <code class="devsite-click-to-copy">gsutil ls $TFT_OUTPUT_PATH</code>
 </pre>
 
-### Model training on the Google Cloud Machine Learning Engine
+### Model training on the Google Cloud AI Platform Training
 
 Run the distributed TensorFlow trainer in the cloud:
 
@@ -465,8 +465,8 @@ Run the distributed TensorFlow trainer in the cloud:
 See the status of the running job in the
 [Google Cloud Console](https://console.cloud.google.com/mlengine).
 
-The trainer is running in the cloud using ML Engine and *not* Dataflow for the
-distributed computation.
+The trainer is running in the cloud using AI Platform Training and *not*
+Dataflow for the distributed computation.
 
 Again, our outputs are identical to the local run:
 
@@ -506,7 +506,7 @@ from running the local job. Go to the
 [`chicago_taxi_tfma.ipynb`](./chicago_taxi_tfma.ipynb)
 notebook and set up the output directory to see the results.
 
-### Model serving on the Google Cloud Machine Learning Engine
+### Model serving on the Google Cloud AI Platform Prediction
 
 To serve the model from the cloud, run:
 
